@@ -1,4 +1,4 @@
-# 🎾 Padel Bot — Les Pyramides
+# 🎾 Padel Bot 
 
 Agent automatique de réservation de créneaux padel sur ballejaune.com, déployé sur GitHub Actions + Pages.
 
