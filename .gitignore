@@ -1,0 +1,28 @@
+# Sensible / credentials
+.env
+.env.*
+
+# Virtual env
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# Logs and runtime files
+*.log
+bot.log
+booking_config.json
+
+# Screenshots (générés par le bot)
+*.png
+
+# Local large image (on garde sur GH Pages dans docs/ si on veut, mais pas en root)
+# hero.jpg
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/

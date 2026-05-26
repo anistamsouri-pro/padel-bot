@@ -1,0 +1,110 @@
+name: Reserver un creneau padel
+
+# Ce workflow se declenche manuellement (via l'API depuis la page web ou via l'interface GitHub)
+on:
+  workflow_dispatch:
+    inputs:
+      target_date:
+        description: "Jour cible (format YYYY-MM-DD)"
+        required: true
+        type: string
+      target_time:
+        description: "Heure du creneau (HH:MM)"
+        required: true
+        type: string
+        default: "19:30"
+      court_priority:
+        description: "Terrains dans l'ordre, separes par des virgules"
+        required: true
+        type: string
+        default: "D4,D5,D3,D1,D2"
+      dry_run:
+        description: "Mode test : 'true' = ne valide PAS la reservation"
+        required: false
+        type: string
+        default: "false"
+
+jobs:
+  book:
+    runs-on: ubuntu-latest
+    # Limite a ~5h50 (max GitHub = 6h). Donc declencher dans la fenetre des 5h
+    # precedent l'ouverture du creneau.
+    timeout-minutes: 350
+
+    steps:
+      - name: Checkout du code
+        uses: actions/checkout@v4
+
+      - name: Setup Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: "pip"
+
+      - name: Installer les dependances Python
+        run: pip install -r requirements.txt
+
+      - name: Installer Chromium (Playwright)
+        run: playwright install chromium --with-deps
+
+      - name: Preparer la config de booking
+        env:
+          INPUT_DATE: ${{ inputs.target_date }}
+          INPUT_TIME: ${{ inputs.target_time }}
+          INPUT_COURTS: ${{ inputs.court_priority }}
+          INPUT_DRY: ${{ inputs.dry_run }}
+        run: |
+          mkdir -p $HOME/padel-agent
+          python <<'PY'
+          import os, json, datetime
+          d = datetime.date.fromisoformat(os.environ["INPUT_DATE"])
+          today = datetime.date.today()
+          offset = (d - today).days
+          h, m = map(int, os.environ["INPUT_TIME"].split(":"))
+          courts = [c.strip() for c in os.environ["INPUT_COURTS"].split(",") if c.strip()]
+          weekday = d.weekday()  # 0 = lundi, 6 = dimanche
+          if weekday < 5:
+              opening = datetime.datetime.combine(d - datetime.timedelta(days=2), datetime.time(17, 0))
+          else:
+              opening = datetime.datetime.combine(d - datetime.timedelta(days=1), datetime.time(19, 30))
+          cfg = {
+              "target_date_offset": offset,
+              "target_hour": h,
+              "target_minute": m,
+              "court_priority": courts,
+              "opening_iso": opening.isoformat(),
+              "dry_run": os.environ["INPUT_DRY"].lower() == "true",
+              "headless": True,
+          }
+          path = os.path.expanduser("~/padel-agent/booking_config.json")
+          with open(path, "w", encoding="utf-8") as f:
+              json.dump(cfg, f, indent=2, ensure_ascii=False)
+          print("=== CONFIG ===")
+          print(json.dumps(cfg, indent=2, ensure_ascii=False))
+          print(f"\nDate cible: {d} ({['Lun','Mar','Mer','Jeu','Ven','Sam','Dim'][weekday]})")
+          print(f"Opening:    {opening}")
+          print(f"Maintenant: {datetime.datetime.now()}")
+          delta = (opening - datetime.datetime.now()).total_seconds()
+          print(f"Delta:      {delta:.0f}s ({delta/3600:.2f}h)")
+          if delta > 350 * 60:
+              print("\n!!! ATTENTION: l'ouverture est dans plus de 5h50.")
+              print("!!! Le job va etre tue avant l'ouverture.")
+              print("!!! Declenche le workflow plus pres de l'heure d'ouverture.")
+          PY
+
+      - name: Lancer le bot de reservation
+        env:
+          BJ_EMAIL: ${{ secrets.BJ_EMAIL }}
+          BJ_PASSWORD: ${{ secrets.BJ_PASSWORD }}
+          CLUB_URL: ${{ secrets.CLUB_URL }}
+        run: python reserve_with_config.py
+
+      - name: Upload des captures (pour debug)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: screenshots-${{ github.run_id }}
+          path: |
+            /home/runner/padel-agent/*.png
+          if-no-files-found: ignore
+          retention-days: 7

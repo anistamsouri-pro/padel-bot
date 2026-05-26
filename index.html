@@ -1,0 +1,830 @@
+<!DOCTYPE html>
+<html lang="fr" class="scroll-smooth">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Padel Bot · Les Pyramides</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ccircle cx='50' cy='50' r='42' fill='%23facc15'/%3E%3Cpath d='M50 10 Q90 40 70 90 M50 10 Q10 40 30 90' stroke='white' stroke-width='3' fill='none' opacity='.6'/%3E%3C/svg%3E">
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+
+<script src="https://cdn.tailwindcss.com"></script>
+<script defer src="https://cdn.jsdelivr.net/npm/alpinejs@3.13.5/dist/cdn.min.js"></script>
+
+<script>
+tailwind.config = {
+    theme: {
+        extend: {
+            colors: {
+                /* Padel court blues */
+                court: {
+                    50:  '#e8f1ff', 100: '#c4dbff', 200: '#94beff', 300: '#5ea0ff',
+                    400: '#3b82f6', 500: '#1d6fe7', 600: '#0d5ad4', 700: '#0846a8',
+                    800: '#0a3576', 900: '#0a2350', 950: '#061536',
+                },
+                /* Padel ball yellow */
+                ball: {
+                    50:  '#fffce8', 100: '#fff8b8', 200: '#fff186', 300: '#ffe85a',
+                    400: '#facc15', 500: '#eab308', 600: '#ca9008', 700: '#a17009',
+                    800: '#825a0d', 900: '#704a0f',
+                },
+                ink: { 100: '#04091a', 200: '#020517', 300: '#01030e' }
+            },
+            fontFamily: {
+                sans: ['"Plus Jakarta Sans"', 'system-ui', 'sans-serif'],
+                mono: ['"JetBrains Mono"', 'ui-monospace', 'monospace'],
+            },
+            keyframes: {
+                'fade-up':   { '0%': {opacity:'0',transform:'translateY(30px)'}, '100%': {opacity:'1',transform:'translateY(0)'} },
+                'slow-pulse':{ '0%,100%': {opacity:'.6'}, '50%': {opacity:'1'} },
+                'shine':     { '0%': {transform:'translateX(-100%)'}, '100%': {transform:'translateX(200%)'} },
+                'spin-slow': { '0%':{transform:'rotate(0deg)'}, '100%':{transform:'rotate(360deg)'} },
+                'bounce-ball':{ '0%,100%':{transform:'translateY(0) rotate(0)'}, '50%':{transform:'translateY(-30px) rotate(180deg)'} },
+                'gradient-shift':{ '0%,100%':{'background-position':'0% 50%'}, '50%':{'background-position':'100% 50%'} },
+                'float-y':{ '0%,100%':{transform:'translateY(0)'}, '50%':{transform:'translateY(-12px)'} },
+            },
+            animation: {
+                'fade-up':   'fade-up 0.7s cubic-bezier(0.16, 1, 0.3, 1)',
+                'slow-pulse':'slow-pulse 2.5s ease-in-out infinite',
+                'shine':     'shine 3s linear infinite',
+                'spin-slow': 'spin-slow 18s linear infinite',
+                'bounce-ball':'bounce-ball 3.5s ease-in-out infinite',
+                'gradient-shift':'gradient-shift 6s ease infinite',
+                'float-y':'float-y 4s ease-in-out infinite',
+            }
+        }
+    }
+}
+</script>
+
+<style>
+    html, body { font-family:'Plus Jakarta Sans', sans-serif; }
+    body {
+        background:
+            radial-gradient(900px 600px at 80% -10%, rgba(59,130,246,0.18) 0%, transparent 55%),
+            radial-gradient(700px 500px at -10% 30%, rgba(250,204,21,0.07) 0%, transparent 55%),
+            radial-gradient(600px 400px at 50% 110%, rgba(59,130,246,0.10) 0%, transparent 55%),
+            #020517;
+        min-height: 100vh;
+        color: #e7eaf3;
+    }
+    select { background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3E%3Cpath stroke='%23facc15' stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='m6 8 4 4 4-4'/%3E%3C/svg%3E"); background-position: right .5rem center; background-repeat: no-repeat; background-size: 1.5em 1.5em; padding-right: 2.5rem; -webkit-appearance:none; appearance:none; }
+    input::-webkit-calendar-picker-indicator { filter: invert(0.9) hue-rotate(180deg) brightness(1.2); cursor: pointer; }
+
+    .glow-court { box-shadow: 0 20px 60px rgba(59,130,246,0.25), 0 0 0 1px rgba(59,130,246,0.4) inset; }
+    .glow-ball  { box-shadow: 0 0 60px rgba(250,204,21,0.45), 0 0 100px rgba(250,204,21,0.25); }
+
+    /* Court chip glow when first priority */
+    .court-card[data-rank="1"] { transform: translateY(-4px); }
+    .court-card[data-rank] .court-svg { filter: brightness(1.1) saturate(1.3); }
+
+    /* Big button glow ring */
+    .btn-glow { position: relative; }
+    .btn-glow::before {
+        content:""; position:absolute; inset:-3px; border-radius:inherit;
+        background: linear-gradient(135deg, #facc15, #fde047, #facc15, #eab308); background-size:300% 300%;
+        filter: blur(18px); opacity:.6; z-index:-1; animation: gshift 4s ease infinite;
+    }
+    @keyframes gshift { 0%,100%{background-position:0% 50%;opacity:.55;} 50%{background-position:100% 50%;opacity:.8;} }
+
+    /* Mesh dots */
+    .dots-bg {
+        background-image: radial-gradient(rgba(255,255,255,0.06) 1px, transparent 1px);
+        background-size: 24px 24px;
+    }
+
+    /* Net pattern background */
+    .net-pattern {
+        background-image:
+            linear-gradient(45deg, transparent 49%, rgba(250,204,21,0.04) 49%, rgba(250,204,21,0.04) 51%, transparent 51%),
+            linear-gradient(-45deg, transparent 49%, rgba(250,204,21,0.04) 49%, rgba(250,204,21,0.04) 51%, transparent 51%);
+        background-size: 16px 16px;
+    }
+
+    /* Scrollbar */
+    ::-webkit-scrollbar{ width:10px; height:10px; }
+    ::-webkit-scrollbar-track{ background:#020517; }
+    ::-webkit-scrollbar-thumb{ background:#0a3576; border-radius:5px; }
+    ::-webkit-scrollbar-thumb:hover{ background:#3b82f6aa; }
+    [x-cloak]{ display:none !important; }
+
+    /* Marquee for stats */
+    .stat-num { font-variant-numeric: tabular-nums; }
+</style>
+</head>
+
+<body x-data="padelBot()" x-init="init()">
+
+<!-- ═════════════════════ SETTINGS MODAL (PAT GitHub) ═════════════════════ -->
+<div x-show="showSettings" x-cloak x-transition.opacity
+     class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink-300/80 backdrop-blur-sm"
+     @click.self="showSettings = false">
+    <div class="bg-court-950 border border-court-700 rounded-3xl p-8 max-w-lg w-full shadow-2xl"
+         @click.stop>
+        <div class="flex items-start justify-between mb-6">
+            <div>
+                <h2 class="text-2xl font-extrabold">Paramètres</h2>
+                <p class="text-sm text-court-200/70 mt-1">Configure ton token GitHub pour lancer le bot depuis cette page.</p>
+            </div>
+            <button @click="showSettings = false" class="text-court-300/60 hover:text-white text-2xl leading-none">×</button>
+        </div>
+
+        <div x-show="isGitHubMode" class="space-y-4">
+            <label class="block">
+                <span class="text-xs text-court-200/70 uppercase tracking-widest font-bold mb-2 block">GitHub Personal Access Token</span>
+                <input type="password" x-model="patInput" placeholder="ghp_..."
+                    class="w-full bg-ink-300/80 border border-court-800/60 rounded-xl px-4 py-3 text-white font-mono text-sm focus:outline-none focus:border-ball-400 focus:ring-2 focus:ring-ball-400/20">
+            </label>
+
+            <div class="bg-court-900/40 border border-court-800/40 rounded-xl p-4 text-xs text-court-100/80 leading-relaxed">
+                <div class="font-bold text-ball-300 mb-2">Comment obtenir un token ?</div>
+                <ol class="list-decimal list-inside space-y-1">
+                    <li>Va sur <a href="https://github.com/settings/personal-access-tokens/new" target="_blank" class="text-ball-300 underline">github.com/settings/tokens</a></li>
+                    <li>Crée un <em>fine-grained token</em>, scope au repo <code class="bg-ink-300/80 px-1.5 py-0.5 rounded text-ball-300">padel-bot</code></li>
+                    <li>Permissions : <strong>Actions</strong> = Read & Write, <strong>Contents</strong> = Read</li>
+                    <li>Copie le token (commence par <code class="bg-ink-300/80 px-1.5 py-0.5 rounded text-ball-300">github_pat_</code> ou <code class="bg-ink-300/80 px-1.5 py-0.5 rounded text-ball-300">ghp_</code>) et colle-le ci-dessus.</li>
+                </ol>
+            </div>
+
+            <div class="flex gap-3">
+                <button type="button" @click="savePat()"
+                    class="flex-1 px-5 py-3 rounded-xl bg-gradient-to-br from-ball-300 to-ball-500 text-court-950 font-bold hover:shadow-lg hover:shadow-ball-400/50 transition-all">
+                    Enregistrer
+                </button>
+                <button type="button" @click="clearPat()"
+                    class="px-5 py-3 rounded-xl bg-court-800/60 border border-court-700 text-court-200 hover:text-white hover:border-court-500 transition-colors">
+                    Effacer
+                </button>
+            </div>
+
+            <div x-show="patToken" class="text-xs text-court-200/70 pt-2 border-t border-court-800">
+                ✓ Token actuellement configuré : <code class="text-ball-300 font-mono" x-text="patPreview"></code>
+            </div>
+        </div>
+
+        <div x-show="!isGitHubMode" class="bg-court-900/40 border border-court-800/40 rounded-xl p-4 text-sm text-court-100/80">
+            <p>Tu es en <strong class="text-ball-300">mode local</strong> (FastAPI). Aucun token nécessaire — le bot tourne directement sur ton Mac quand tu cliques « Lancer ».</p>
+            <p class="mt-2 text-xs text-court-200/70">Pour utiliser depuis ton iPhone sans Mac allumé, déploie sur GitHub Pages.</p>
+        </div>
+    </div>
+</div>
+
+
+<!-- ═════════════════════ NAV ═════════════════════ -->
+<nav class="fixed top-0 left-0 right-0 z-50 backdrop-blur-xl bg-ink-200/70 border-b border-court-800/40">
+    <div class="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+            <div class="relative w-10 h-10 rounded-xl bg-gradient-to-br from-ball-300 via-ball-400 to-ball-600 flex items-center justify-center shadow-lg shadow-ball-400/40">
+                <svg class="w-6 h-6 text-court-900" viewBox="0 0 24 24" fill="none">
+                    <circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="2.5"/>
+                    <path d="M12 2 C 18 6, 18 18, 12 22 M12 2 C 6 6, 6 18, 12 22" stroke="currentColor" stroke-width="2" fill="none"/>
+                </svg>
+            </div>
+            <div>
+                <div class="font-extrabold text-base leading-tight">Padel Bot</div>
+                <div class="text-[10px] text-ball-400 uppercase tracking-widest font-semibold">Les Pyramides</div>
+            </div>
+        </div>
+        <div class="flex items-center gap-3">
+            <div class="hidden md:flex items-center gap-2 px-3 py-2 rounded-lg bg-court-500/10 border border-court-500/30 text-court-300 text-xs font-semibold">
+                <span class="w-2 h-2 rounded-full bg-ball-400 animate-slow-pulse"></span>
+                <span x-text="modeLabel"></span>
+            </div>
+            <button type="button" @click="showSettings = true" title="Paramètres"
+                class="w-10 h-10 rounded-xl bg-court-900/60 border border-court-800 hover:border-ball-400 hover:bg-court-800/60 text-court-200 hover:text-ball-400 flex items-center justify-center transition-colors">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 0 0 2.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 0 0 1.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 0 0-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 0 0-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 0 0-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 0 0-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 0 0 1.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065Z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+            </button>
+        </div>
+    </div>
+</nav>
+
+<!-- ═════════════════════ HERO ═════════════════════ -->
+<section class="relative overflow-hidden pt-24 pb-20 md:pt-32 md:pb-32 min-h-[90vh] flex items-center">
+    <!-- Background image with multiple fallbacks
+         ╔══════════════════════════════════════════════════════════════════╗
+         ║  POUR CHANGER LA PHOTO : remplace les URLs `src=...` ci-dessous   ║
+         ║  par n'importe quelle image (Unsplash, Pexels, fichier local).   ║
+         ║  Voir instructions dans la conversation.                          ║
+         ╚══════════════════════════════════════════════════════════════════╝ -->
+    <div class="absolute inset-0 z-0">
+        <img
+            src="./hero.jpg"
+            onerror="this.onerror=null;this.src='/static/hero.jpg';this.onerror=()=>this.style.display='none';"
+            class="w-full h-full object-cover object-center opacity-90"
+            alt="Padel court action">
+        <!-- Light overlay only at bottom for text readability -->
+        <div class="absolute inset-0 bg-gradient-to-b from-ink-200/15 via-ink-200/30 to-ink-200/90"></div>
+        <!-- Subtle blue tint for ambiance -->
+        <div class="absolute inset-0" style="background:radial-gradient(ellipse 80% 60% at 50% 30%, rgba(94,160,255,0.08) 0%, transparent 70%);"></div>
+    </div>
+
+    <!-- Floating yellow balls (lighter, brighter) -->
+    <div class="absolute z-10 top-1/4 right-[8%] w-24 h-24 rounded-full bg-gradient-to-br from-ball-100 via-ball-200 to-ball-400 animate-bounce-ball opacity-95" style="box-shadow: 0 0 80px rgba(255,232,90,0.6), 0 0 140px rgba(255,232,90,0.35);">
+        <div class="absolute inset-2 rounded-full border-2 border-white/50" style="clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 100%, 0 100%)"></div>
+    </div>
+    <div class="absolute z-10 bottom-[15%] left-[6%] w-14 h-14 rounded-full bg-gradient-to-br from-ball-100 to-ball-300 animate-float-y opacity-85 hidden md:block" style="animation-delay:1.5s; box-shadow: 0 0 50px rgba(255,232,90,0.5);">
+        <div class="absolute inset-1.5 rounded-full border-2 border-white/50" style="clip-path: polygon(0 0, 100% 0, 100% 50%, 50% 100%, 0 100%)"></div>
+    </div>
+
+    <div class="relative z-20 max-w-6xl mx-auto px-6 text-center w-full">
+        <div class="animate-fade-up">
+            <div class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-court-500/15 border border-court-500/40 text-court-200 text-xs font-bold uppercase tracking-widest mb-8 backdrop-blur-sm">
+                <span class="w-1.5 h-1.5 rounded-full bg-ball-400 animate-slow-pulse"></span>
+                Réservation automatique · Les Pyramides
+            </div>
+
+            <h1 class="text-5xl md:text-7xl lg:text-8xl font-extrabold leading-[0.95] tracking-tight" style="text-shadow: 0 4px 30px rgba(0,0,0,0.7), 0 2px 10px rgba(0,0,0,0.5);">
+                Décroche ton<br>
+                <span class="relative inline-block mt-2">
+                    <span class="bg-gradient-to-r from-ball-100 via-ball-200 to-ball-300 bg-clip-text text-transparent">créneau padel</span>
+                    <svg class="absolute -bottom-3 left-0 w-full" height="14" viewBox="0 0 320 14" fill="none" preserveAspectRatio="none">
+                        <path d="M2 9 Q 80 1, 160 6 T 318 4" stroke="url(#g)" stroke-width="3" stroke-linecap="round" fill="none"/>
+                        <defs><linearGradient id="g" x1="0" y1="0" x2="320" y2="0"><stop stop-color="#fff8b8"/><stop offset="1" stop-color="#ffe85a"/></linearGradient></defs>
+                    </svg>
+                </span><br>
+                <span class="text-court-100">à la milliseconde près.</span>
+            </h1>
+
+            <p class="mt-10 text-lg md:text-xl text-white/90 max-w-2xl mx-auto leading-relaxed font-medium" style="text-shadow: 0 2px 12px rgba(0,0,0,0.7);">
+                L'agent qui réserve tes terrains <strong class="text-ball-200">5× plus vite</strong> qu'un humain, à l'instant exact où les créneaux s'ouvrent sur ballejaune.
+            </p>
+
+            <div class="mt-12 flex flex-wrap gap-4 justify-center">
+                <a href="#booking" class="group inline-flex items-center gap-2 px-7 py-4 rounded-2xl bg-gradient-to-br from-ball-200 via-ball-300 to-ball-400 text-court-950 font-extrabold uppercase tracking-wider shadow-2xl shadow-ball-300/50 hover:shadow-ball-300/70 hover:-translate-y-0.5 transition-all">
+                    Réserver maintenant
+                    <svg class="w-5 h-5 group-hover:translate-x-1 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M9 5l7 7-7 7"/></svg>
+                </a>
+                <a href="#how" class="inline-flex items-center gap-2 px-7 py-4 rounded-2xl bg-white/5 backdrop-blur border border-white/15 text-white font-semibold hover:bg-white/10 transition-all">
+                    Le process
+                </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Scroll indicator -->
+    <div class="absolute bottom-8 left-1/2 -translate-x-1/2 z-20 animate-bounce hidden md:block">
+        <svg class="w-6 h-6 text-court-300/60" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="m19 14-7 7m0 0-7-7m7 7V3"/></svg>
+    </div>
+</section>
+
+<!-- ═════════════════════ BOOKING FORM ═════════════════════ -->
+<section id="booking" class="relative max-w-5xl mx-auto px-6 py-16 md:py-24">
+    <div class="relative z-10">
+
+        <div class="text-center mb-14">
+            <div class="inline-block text-ball-400 text-xs font-bold uppercase tracking-widest mb-3">Réservation</div>
+            <h2 class="text-4xl md:text-6xl font-extrabold tracking-tight">Programme ton créneau</h2>
+            <p class="text-court-200/70 mt-3 text-lg">Le bot calcule l'heure d'ouverture et frappe à la milliseconde.</p>
+        </div>
+
+        <form @submit.prevent="submitBooking" class="space-y-6">
+
+            <!-- ═════ Card 1: When ═════ -->
+            <div class="bg-court-950/40 backdrop-blur-xl border border-court-800/50 rounded-3xl p-8 hover:border-court-500/50 transition-all duration-300">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-court-500/15 border border-court-500/40 flex items-center justify-center text-court-300 font-extrabold text-lg">01</div>
+                    <div>
+                        <h3 class="text-xl font-bold">Quand veux-tu jouer ?</h3>
+                        <p class="text-sm text-court-100/60">Date et heure du créneau souhaité.</p>
+                    </div>
+                </div>
+                <div class="grid sm:grid-cols-2 gap-4">
+                    <label class="block">
+                        <span class="text-xs text-court-200/70 uppercase tracking-widest font-bold mb-2 block">Jour</span>
+                        <input type="date" x-model="targetDate" :min="minDate" :max="maxDate"
+                            class="w-full bg-ink-300/80 border border-court-800/60 rounded-xl px-4 py-3.5 text-white font-mono focus:outline-none focus:border-ball-400 focus:ring-2 focus:ring-ball-400/20 transition-all">
+                    </label>
+                    <label class="block">
+                        <span class="text-xs text-court-200/70 uppercase tracking-widest font-bold mb-2 block">Heure</span>
+                        <select x-model="targetTime"
+                            class="w-full bg-ink-300/80 border border-court-800/60 rounded-xl px-4 py-3.5 text-white font-mono focus:outline-none focus:border-ball-400 focus:ring-2 focus:ring-ball-400/20 transition-all">
+                            <template x-for="t in timeOptions" :key="t">
+                                <option :value="t" x-text="t"></option>
+                            </template>
+                        </select>
+                    </label>
+                </div>
+            </div>
+
+            <!-- ═════ Card 2: Courts (PADEL COURT VISUALIZATION) ═════ -->
+            <div class="bg-court-950/40 backdrop-blur-xl border border-court-800/50 rounded-3xl p-8 hover:border-court-500/50 transition-all duration-300">
+                <div class="flex items-center gap-4 mb-6">
+                    <div class="w-12 h-12 rounded-2xl bg-court-500/15 border border-court-500/40 flex items-center justify-center text-court-300 font-extrabold text-lg">02</div>
+                    <div class="flex-1">
+                        <h3 class="text-xl font-bold">Sur quel terrain ?</h3>
+                        <p class="text-sm text-court-100/60">Clique sur les terrains dans l'ordre de priorité voulu.</p>
+                    </div>
+                    <button type="button" @click="resetCourts" class="text-xs text-court-300/60 hover:text-ball-400 transition-colors font-semibold uppercase tracking-wider">
+                        Réinitialiser
+                    </button>
+                </div>
+
+                <!-- Mini padel courts -->
+                <div class="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                    <template x-for="court in allCourts" :key="court">
+                        <button type="button" @click="toggleCourt(court)"
+                            :data-rank="rank(court)"
+                            :class="rank(court) ? 'border-ball-400 bg-court-900/80 shadow-xl shadow-ball-400/20' : 'border-court-800 bg-ink-300/40 hover:border-court-500/50 hover:bg-court-950/40'"
+                            class="court-card group relative aspect-[5/7] rounded-2xl border-2 p-2 transition-all duration-300">
+
+                            <!-- Mini padel court SVG -->
+                            <svg class="court-svg w-full h-full transition-all duration-300" viewBox="0 0 100 140" xmlns="http://www.w3.org/2000/svg">
+                                <!-- Court surface -->
+                                <rect x="6" y="6" width="88" height="128" rx="3"
+                                    :fill="rank(court) ? '#3b82f6' : '#0a3576'"
+                                    :stroke="rank(court) ? '#94beff' : '#1d6fe7'"
+                                    stroke-width="0.8"/>
+                                <!-- Glass walls (sides) -->
+                                <rect x="6" y="6" width="2" height="128" fill="rgba(255,255,255,0.15)"/>
+                                <rect x="92" y="6" width="2" height="128" fill="rgba(255,255,255,0.15)"/>
+                                <!-- Service area lines -->
+                                <line x1="6" y1="40" x2="94" y2="40" stroke="white" stroke-width="0.6" opacity="0.55"/>
+                                <line x1="6" y1="100" x2="94" y2="100" stroke="white" stroke-width="0.6" opacity="0.55"/>
+                                <line x1="50" y1="40" x2="50" y2="100" stroke="white" stroke-width="0.6" opacity="0.55"/>
+                                <!-- Net -->
+                                <line x1="6" y1="70" x2="94" y2="70" stroke="#facc15" stroke-width="1.2" stroke-dasharray="2 1.5" opacity="0.9"/>
+                                <!-- Ball if selected -->
+                                <template x-if="rank(court)">
+                                    <g>
+                                        <circle cx="34" cy="55" r="4.5" fill="#facc15"/>
+                                        <path d="M 30 55 Q 34 51, 38 55 M 30 55 Q 34 59, 38 55" stroke="white" stroke-width="0.5" fill="none" opacity="0.6"/>
+                                    </g>
+                                </template>
+                            </svg>
+
+                            <!-- Court label -->
+                            <div :class="rank(court) ? 'text-ball-300' : 'text-court-200/70'"
+                                 class="absolute bottom-3 left-0 right-0 text-center font-extrabold tracking-tight text-base">
+                                <span x-text="court"></span>
+                            </div>
+
+                            <!-- Rank badge -->
+                            <template x-if="rank(court)">
+                                <span class="absolute -top-2 -right-2 w-8 h-8 rounded-full bg-gradient-to-br from-ball-300 to-ball-500 text-court-950 text-sm font-extrabold flex items-center justify-center shadow-lg shadow-ball-400/40 ring-2 ring-ink-200"
+                                      x-text="rank(court)"></span>
+                            </template>
+                        </button>
+                    </template>
+                </div>
+
+                <div x-show="courtPriority.length === 0" class="mt-5 text-center text-ball-400/80 text-sm font-medium">
+                    Sélectionne au moins un terrain
+                </div>
+
+                <!-- Priority strip -->
+                <div x-show="courtPriority.length > 0" class="mt-6 flex items-center gap-2 flex-wrap">
+                    <span class="text-xs text-court-200/60 uppercase tracking-widest font-bold">Ordre tenté :</span>
+                    <template x-for="(c, i) in courtPriority" :key="c">
+                        <div class="flex items-center gap-2">
+                            <span :class="i === 0 ? 'bg-gradient-to-r from-ball-300 to-ball-500 text-court-950 border-ball-200' : 'bg-court-900/60 text-court-100 border-court-700'"
+                                  class="px-3 py-1 rounded-full text-xs font-mono font-bold border whitespace-nowrap">
+                                <span x-text="`#${i+1}`"></span> · D<span x-text="c.replace('D','')"></span>
+                            </span>
+                            <svg x-show="i < courtPriority.length - 1" class="w-3 h-3 text-court-600" fill="currentColor" viewBox="0 0 20 20"><path fill-rule="evenodd" d="M7.293 14.707a1 1 0 0 1 0-1.414L10.586 10 7.293 6.707a1 1 0 1 1 1.414-1.414l4 4a1 1 0 0 1 0 1.414l-4 4a1 1 0 0 1-1.414 0z" clip-rule="evenodd"/></svg>
+                        </div>
+                    </template>
+                </div>
+            </div>
+
+            <!-- ═════ Card 3: Options + Partners ═════ -->
+            <div class="grid md:grid-cols-2 gap-6">
+                <div class="bg-court-950/40 backdrop-blur-xl border border-court-800/50 rounded-3xl p-7 hover:border-court-500/50 transition-all duration-300">
+                    <div class="flex items-center gap-4 mb-5">
+                        <div class="w-12 h-12 rounded-2xl bg-court-500/15 border border-court-500/40 flex items-center justify-center text-court-300 font-extrabold text-lg">03</div>
+                        <h3 class="text-xl font-bold">Options</h3>
+                    </div>
+                    <div class="space-y-3">
+                        <label class="flex items-start gap-3 cursor-pointer group p-2 -mx-2 rounded-lg hover:bg-court-900/30 transition-colors">
+                            <input type="checkbox" x-model="dryRun"
+                                class="mt-1 w-5 h-5 rounded border-2 border-court-700 bg-ink-300 text-ball-500 focus:ring-ball-400/20">
+                            <div>
+                                <div class="font-semibold group-hover:text-ball-300 transition-colors">Mode test</div>
+                                <div class="text-xs text-court-200/60 mt-0.5">Va jusqu'à Réserver sans cliquer dessus.</div>
+                            </div>
+                        </label>
+                        <label class="flex items-start gap-3 cursor-pointer group p-2 -mx-2 rounded-lg hover:bg-court-900/30 transition-colors">
+                            <input type="checkbox" x-model="headless"
+                                class="mt-1 w-5 h-5 rounded border-2 border-court-700 bg-ink-300 text-ball-500 focus:ring-ball-400/20">
+                            <div>
+                                <div class="font-semibold group-hover:text-ball-300 transition-colors">Mode invisible</div>
+                                <div class="text-xs text-court-200/60 mt-0.5">Navigateur en arrière-plan, plus rapide.</div>
+                            </div>
+                        </label>
+                    </div>
+                </div>
+
+                <div class="bg-court-950/40 backdrop-blur-xl border border-court-800/50 rounded-3xl p-7 hover:border-court-500/50 transition-all duration-300">
+                    <div class="flex items-center gap-4 mb-5">
+                        <div class="w-12 h-12 rounded-2xl bg-ball-500/15 border border-ball-500/40 flex items-center justify-center">
+                            <svg class="w-5 h-5 text-ball-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 20h5v-2a4 4 0 0 0-3-3.87M9 20H2v-2a4 4 0 0 1 3-3.87m9-9.13a4 4 0 1 1-8 0 4 4 0 0 1 8 0Zm6 4a3 3 0 1 1-6 0 3 3 0 0 1 6 0Z"/></svg>
+                        </div>
+                        <h3 class="text-xl font-bold">Partenaires</h3>
+                    </div>
+                    <ul class="space-y-2.5 text-sm">
+                        <li class="flex items-center gap-3 text-court-100/90">
+                            <span class="w-1.5 h-1.5 rounded-full bg-ball-400"></span>
+                            SARL DIGITEASE 2, Ste
+                        </li>
+                        <li class="flex items-center gap-3 text-court-100/90">
+                            <span class="w-1.5 h-1.5 rounded-full bg-ball-400"></span>
+                            SARL DIGITEASE, Ste
+                        </li>
+                        <li class="flex items-center gap-3 text-court-100/90">
+                            <span class="w-1.5 h-1.5 rounded-full bg-ball-400"></span>
+                            RISKCON ADVISORY, 1
+                        </li>
+                    </ul>
+                    <p class="text-xs text-court-300/50 mt-4">Cochés automatiquement par leur ID interne.</p>
+                </div>
+            </div>
+
+            <!-- ═════ Plan d'exécution ═════ -->
+            <div class="relative overflow-hidden rounded-3xl border p-7"
+                :class="immediate ? 'bg-ball-500/5 border-ball-400/40' : 'bg-court-500/5 border-court-500/40'">
+                <div class="absolute inset-0 dots-bg opacity-30 pointer-events-none"></div>
+                <div class="relative z-10 flex items-start gap-5">
+                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center flex-shrink-0"
+                        :class="immediate ? 'bg-ball-500/15' : 'bg-court-500/15'">
+                        <svg x-show="immediate" class="w-9 h-9 text-ball-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M13 10V3L4 14h7v7l9-11h-7Z"/></svg>
+                        <svg x-show="!immediate" class="w-9 h-9 text-court-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z"/></svg>
+                    </div>
+                    <div class="flex-1 min-w-0">
+                        <div class="flex items-center gap-2 mb-2 flex-wrap">
+                            <span class="text-xs uppercase tracking-widest font-extrabold"
+                                :class="immediate ? 'text-ball-400' : 'text-court-300'"
+                                x-text="immediate ? 'Action immédiate' : 'Programmé'"></span>
+                            <span class="text-xs text-court-200/60" x-text="ruleLabel"></span>
+                        </div>
+                        <div class="text-lg md:text-xl font-extrabold tracking-tight" x-text="targetLabel"></div>
+                        <div class="text-sm text-court-100/70 mt-1" x-text="openingLabel"></div>
+                        <div class="mt-4 font-mono text-3xl md:text-4xl font-extrabold stat-num"
+                             :class="immediate ? 'text-ball-400' : 'text-court-200'"
+                             x-text="countdown"></div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- ═════ Submit button ═════ -->
+            <button type="submit" :disabled="busy || courtPriority.length === 0"
+                class="btn-glow group relative w-full overflow-hidden rounded-2xl bg-gradient-to-br from-ball-200 via-ball-300 to-ball-400 text-court-950 font-extrabold text-xl uppercase tracking-widest py-6 shadow-2xl shadow-ball-300/50 hover:shadow-ball-300/70 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none transition-all">
+                <span class="relative z-10 flex items-center justify-center gap-3">
+                    <svg x-show="!busy" class="w-7 h-7" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 10V3L4 14h7v7l9-11h-7Z"/></svg>
+                    <svg x-show="busy" class="w-7 h-7 animate-spin" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" stroke="currentColor" stroke-width="3" stroke-dasharray="40" stroke-linecap="round"/></svg>
+                    <span x-text="busy ? 'Lancement…' : 'Lancer le bot'"></span>
+                </span>
+                <span class="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 bg-gradient-to-r from-transparent via-white/30 to-transparent"></span>
+            </button>
+        </form>
+
+        <!-- ═════ Result panel ═════ -->
+        <div x-show="result.show" x-transition x-cloak class="mt-6 rounded-2xl border p-6"
+            :class="result.ok ? 'bg-ball-500/5 border-ball-400/40' : 'bg-red-500/5 border-red-500/40'">
+            <div class="flex items-start gap-4">
+                <svg x-show="result.ok" class="w-6 h-6 text-ball-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="m5 13 4 4L19 7"/></svg>
+                <svg x-show="!result.ok" class="w-6 h-6 text-red-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v3.75m9-.75a9 9 0 1 1-18 0 9 9 0 0 1 18 0Zm-9 3.75h.008v.008H12v-.008Z"/></svg>
+                <div class="flex-1">
+                    <div class="font-bold text-lg" x-text="result.title"></div>
+                    <div class="text-sm mt-1 opacity-80" x-html="result.message"></div>
+                    <pre x-show="result.log" class="mt-4 bg-ink-300/80 border border-court-800/60 rounded-xl p-4 text-xs text-ball-300 font-mono overflow-x-auto max-h-60" x-text="result.log"></pre>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</section>
+
+<!-- ═════════════════════ STATS + HOW IT WORKS ═════════════════════ -->
+<section id="how" class="relative max-w-6xl mx-auto px-6 py-20 md:py-24">
+
+    <div class="text-center mb-14">
+        <div class="inline-block text-ball-400 text-xs font-bold uppercase tracking-widest mb-3">Performance</div>
+        <h2 class="text-4xl md:text-5xl font-extrabold tracking-tight">Plus rapide qu'un humain</h2>
+        <p class="text-court-200/70 mt-3 text-lg">Conçu pour battre la concurrence au moment de l'ouverture des créneaux.</p>
+    </div>
+
+    <!-- Stats horizontal -->
+    <div class="grid sm:grid-cols-3 gap-6 mb-20">
+        <div class="bg-gradient-to-br from-court-950/60 to-court-900/30 backdrop-blur border border-court-800/50 rounded-3xl p-8 hover:border-ball-400/40 transition-all group">
+            <div class="text-6xl font-extrabold bg-gradient-to-br from-white via-court-200 to-court-300 bg-clip-text text-transparent stat-num">
+                2.1<span class="text-ball-400">s</span>
+            </div>
+            <div class="mt-2 text-xs text-court-300 uppercase tracking-widest font-bold">Temps moyen</div>
+            <div class="mt-1 text-sm text-court-100/70">De l'ouverture au clic « Réserver »</div>
+        </div>
+        <div class="bg-gradient-to-br from-court-950/60 to-court-900/30 backdrop-blur border border-court-800/50 rounded-3xl p-8 hover:border-ball-400/40 transition-all group">
+            <div class="text-6xl font-extrabold bg-gradient-to-br from-ball-200 to-ball-500 bg-clip-text text-transparent stat-num">5×</div>
+            <div class="mt-2 text-xs text-court-300 uppercase tracking-widest font-bold">Vs humain</div>
+            <div class="mt-1 text-sm text-court-100/70">Humain rapide : 8 à 12 secondes</div>
+        </div>
+        <div class="bg-gradient-to-br from-court-950/60 to-court-900/30 backdrop-blur border border-court-800/50 rounded-3xl p-8 hover:border-ball-400/40 transition-all group">
+            <div class="text-6xl font-extrabold bg-gradient-to-br from-white via-court-200 to-court-300 bg-clip-text text-transparent stat-num">±4<span class="text-ball-400">ms</span></div>
+            <div class="mt-2 text-xs text-court-300 uppercase tracking-widest font-bold">Précision</div>
+            <div class="mt-1 text-sm text-court-100/70">Synchro à l'heure d'ouverture</div>
+        </div>
+    </div>
+
+    <!-- How it works -->
+    <div class="text-center mb-12">
+        <div class="inline-block text-ball-400 text-xs font-bold uppercase tracking-widest mb-3">Le process</div>
+        <h3 class="text-3xl md:text-4xl font-extrabold tracking-tight">5 étapes, ~2 secondes</h3>
+    </div>
+
+    <div class="relative max-w-3xl mx-auto">
+        <div class="absolute left-8 top-0 bottom-0 w-px bg-gradient-to-b from-ball-400/0 via-ball-400/40 to-ball-400/0"></div>
+
+        <div class="space-y-6">
+            <template x-for="(step, i) in steps" :key="i">
+                <div class="relative flex gap-6 items-start group">
+                    <div class="relative z-10 flex-shrink-0 w-16 h-16 rounded-2xl bg-gradient-to-br from-court-900 to-court-950 border border-ball-400/50 flex items-center justify-center text-ball-400 font-extrabold text-lg shadow-lg shadow-ball-400/10 group-hover:shadow-ball-400/30 group-hover:border-ball-400 transition-all">
+                        <span x-text="String(i+1).padStart(2,'0')"></span>
+                    </div>
+                    <div class="flex-1 pt-2 bg-court-950/30 backdrop-blur rounded-2xl border border-court-800/30 p-4 group-hover:border-court-500/40 transition-colors">
+                        <div class="flex items-baseline justify-between gap-3 flex-wrap">
+                            <div class="font-bold text-lg" x-text="step.title"></div>
+                            <div class="text-xs text-ball-400 font-mono whitespace-nowrap" x-text="step.time"></div>
+                        </div>
+                        <div class="text-court-100/70 text-sm mt-1" x-text="step.desc"></div>
+                    </div>
+                </div>
+            </template>
+        </div>
+    </div>
+</section>
+
+<!-- ═════════════════════ FOOTER ═════════════════════ -->
+<footer class="border-t border-court-800/40 mt-10 py-10">
+    <div class="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-4">
+        <div class="flex items-center gap-3 text-sm text-court-200/60">
+            <div class="w-6 h-6 rounded-md bg-gradient-to-br from-ball-300 to-ball-500"></div>
+            <span><strong class="text-court-100">Padel Bot</strong> · Les Pyramides · 2026</span>
+        </div>
+        <div class="text-xs text-court-300/50 font-mono">
+            FastAPI · Playwright · Tailwind
+        </div>
+    </div>
+</footer>
+
+<!-- ═════════════════════ JS ═════════════════════ -->
+<script>
+function padelBot() {
+    // ─── Configuration GitHub (a modifier si le repo change) ───
+    const GH_OWNER    = 'anistamsouri-pro';
+    const GH_REPO     = 'padel-bot';
+    const GH_WORKFLOW = 'booking.yml';
+    const GH_REF      = 'main';
+
+    return {
+        // GitHub config
+        ghOwner: GH_OWNER, ghRepo: GH_REPO, ghWorkflow: GH_WORKFLOW, ghRef: GH_REF,
+
+        // Mode detection
+        get isGitHubMode() { return location.hostname.endsWith('.github.io') || location.protocol === 'file:'; },
+        get modeLabel()    { return this.isGitHubMode ? 'Cloud GitHub' : 'Local'; },
+
+        // PAT (token GitHub)
+        patToken: '',
+        patInput: '',
+        showSettings: false,
+        get patPreview() {
+            if (!this.patToken) return '';
+            return this.patToken.slice(0,7) + '…' + this.patToken.slice(-4);
+        },
+
+        allCourts: ['D1','D2','D3','D4','D5'],
+        courtPriority: ['D4','D5','D3','D1','D2'],
+        targetDate: '',
+        targetTime: '19:30',
+        timeOptions: ['07:30','09:00','10:30','12:00','13:30','15:00','16:30','18:00','19:30','21:00'],
+        dryRun: false,
+        headless: false,
+        minDate: '',
+        maxDate: '',
+        now: new Date(),
+        busy: false,
+        result: { show: false, ok: false, title: '', message: '', log: '' },
+
+        steps: [
+            { title:'Login automatique',     desc:'Connexion à ballejaune et navigation au planning du jour cible.', time:'≈ 3 s avant ouverture' },
+            { title:'Pré-positionnement',    desc:'Cache des sélecteurs en mémoire, prêt à dégoupiller.',            time:'≈ 1 s' },
+            { title:'Synchronisation',       desc:'Attente à la milliseconde près de l\'heure d\'ouverture officielle.', time:'précision ±4 ms' },
+            { title:'Reload + clic',         desc:'Rafraîchissement et clic instantané sur le premier terrain libre selon ton ordre.', time:'≈ 0.5–1.5 s' },
+            { title:'Partenaires + Réserver',desc:'3 partenaires cochés par leur ID + validation finale.',           time:'≈ 0.6 s' },
+        ],
+
+        init() {
+            const today = new Date();
+            this.minDate = this.toISO(today);
+            const max = new Date(today); max.setDate(today.getDate()+14);
+            this.maxDate = this.toISO(max);
+            const target = new Date(today); target.setDate(today.getDate()+2);
+            this.targetDate = this.toISO(target);
+            setInterval(()=>{ this.now = new Date(); }, 1000);
+
+            // Load PAT from localStorage if present
+            const saved = localStorage.getItem('padel-bot-pat');
+            if (saved) { this.patToken = saved; this.patInput = saved; }
+        },
+
+        savePat() {
+            const t = (this.patInput || '').trim();
+            if (!t) { alert("Colle ton token GitHub avant d'enregistrer."); return; }
+            this.patToken = t;
+            localStorage.setItem('padel-bot-pat', t);
+            this.showSettings = false;
+        },
+        clearPat() {
+            this.patToken = '';
+            this.patInput = '';
+            localStorage.removeItem('padel-bot-pat');
+        },
+
+        toISO(d){ return d.toISOString().slice(0,10); },
+
+        rank(court) {
+            const i = this.courtPriority.indexOf(court);
+            return i >= 0 ? i+1 : null;
+        },
+        toggleCourt(court) {
+            const i = this.courtPriority.indexOf(court);
+            if (i >= 0) this.courtPriority.splice(i,1);
+            else this.courtPriority.push(court);
+        },
+        resetCourts() { this.courtPriority = []; },
+
+        get parsedDate() {
+            return this.targetDate ? new Date(this.targetDate + 'T00:00:00') : null;
+        },
+        get isWeekend() {
+            if (!this.parsedDate) return false;
+            const d = this.parsedDate.getDay();
+            return d === 0 || d === 6;
+        },
+        get openingDateTime() {
+            if (!this.parsedDate) return null;
+            const opening = new Date(this.parsedDate);
+            if (this.isWeekend) {
+                opening.setDate(opening.getDate() - 1);
+                opening.setHours(19, 30, 0, 0);
+            } else {
+                opening.setDate(opening.getDate() - 2);
+                opening.setHours(17, 0, 0, 0);
+            }
+            return opening;
+        },
+        get immediate() {
+            return this.openingDateTime && this.openingDateTime <= this.now;
+        },
+        get ruleLabel() {
+            return this.isWeekend ? '· Week-end · ouverture J-1 19h30' : '· Semaine · ouverture J-2 17h00';
+        },
+        get targetLabel() {
+            if (!this.parsedDate) return '';
+            const fmt = this.parsedDate.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long', year:'numeric' });
+            return `Cible : ${fmt} · ${this.targetTime}`;
+        },
+        get openingLabel() {
+            if (!this.openingDateTime) return '';
+            const o = this.openingDateTime;
+            const fmt = o.toLocaleDateString('fr-FR', { weekday:'long', day:'numeric', month:'long' });
+            const h = String(o.getHours()).padStart(2,'0');
+            const m = String(o.getMinutes()).padStart(2,'0');
+            return `Ouverture : ${fmt} à ${h}h${m}`;
+        },
+        get countdown() {
+            if (!this.openingDateTime) return '';
+            if (this.immediate) return '▶ ACTION DÈS LANCEMENT';
+            let s = Math.floor((this.openingDateTime - this.now) / 1000);
+            const d = Math.floor(s / 86400); s %= 86400;
+            const h = Math.floor(s / 3600);  s %= 3600;
+            const m = Math.floor(s / 60);    s %= 60;
+            if (d > 0) return `⏳ ${d}j ${h}h ${String(m).padStart(2,'0')}m`;
+            if (h > 0) return `⏳ ${h}h ${String(m).padStart(2,'0')}m ${String(s).padStart(2,'0')}s`;
+            return `⏳ ${m}m ${String(s).padStart(2,'0')}s`;
+        },
+
+        async submitBooking() {
+            if (this.courtPriority.length === 0) return;
+            this.busy = true;
+            this.result.show = false;
+
+            try {
+                if (this.isGitHubMode) {
+                    await this.submitToGitHub();
+                } else {
+                    await this.submitToLocal();
+                }
+            } catch (e) {
+                this.result = { show: true, ok: false, title: 'Erreur', message: e.toString(), log: '' };
+            } finally {
+                this.busy = false;
+            }
+        },
+
+        // ─── Mode LOCAL (FastAPI) ───
+        async submitToLocal() {
+            const payload = {
+                target_date:    this.targetDate,
+                target_time:    this.targetTime,
+                court_priority: this.courtPriority,
+                dry_run:        this.dryRun,
+                headless:       this.headless,
+            };
+            const res = await fetch('/api/schedule', {
+                method: 'POST',
+                headers: {'Content-Type':'application/json'},
+                body: JSON.stringify(payload),
+            });
+            const data = await res.json();
+            if (data.ok) {
+                this.result = {
+                    show: true, ok: true,
+                    title: '🤖 Bot lancé en arrière-plan',
+                    message: `Le bot s'occupe de tout. Tu peux fermer cet onglet, il continue.<br>Log live : <code class="bg-ink-300/80 px-2 py-1 rounded text-ball-300">tail -f ${data.log_path}</code>`,
+                    log: '',
+                };
+                this.startLogTail();
+            } else {
+                this.result = { show: true, ok: false, title: 'Échec du lancement', message: data.error || 'Erreur inconnue', log: '' };
+            }
+        },
+
+        async startLogTail() {
+            for (let i = 0; i < 30; i++) {
+                await new Promise(r => setTimeout(r, 2000));
+                try {
+                    const res = await fetch('/api/status');
+                    const data = await res.json();
+                    if (data.log) this.result.log = data.log;
+                    if (!data.running && data.log.length > 0) break;
+                } catch (e) {}
+            }
+        },
+
+        // ─── Mode GITHUB (workflow_dispatch via API) ───
+        async submitToGitHub() {
+            if (!this.patToken) {
+                this.showSettings = true;
+                this.result = { show: true, ok: false,
+                    title: 'Token GitHub manquant',
+                    message: "Tu dois d'abord configurer ton Personal Access Token (icône ⚙️ en haut). Voir les instructions dans la fenêtre Paramètres.",
+                    log: '' };
+                return;
+            }
+
+            const url = `https://api.github.com/repos/${this.ghOwner}/${this.ghRepo}/actions/workflows/${this.ghWorkflow}/dispatches`;
+            const body = {
+                ref: this.ghRef,
+                inputs: {
+                    target_date:    this.targetDate,
+                    target_time:    this.targetTime,
+                    court_priority: this.courtPriority.join(','),
+                    dry_run:        String(this.dryRun),
+                },
+            };
+
+            const res = await fetch(url, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/vnd.github+json',
+                    'Authorization': `Bearer ${this.patToken}`,
+                    'X-GitHub-Api-Version': '2022-11-28',
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(body),
+            });
+
+            if (res.status === 204) {
+                const runsUrl = `https://github.com/${this.ghOwner}/${this.ghRepo}/actions/workflows/${this.ghWorkflow}`;
+                this.result = {
+                    show: true, ok: true,
+                    title: '🚀 Workflow déclenché !',
+                    message: `Le bot tourne sur les serveurs GitHub. Tu peux fermer cet onglet.<br>
+                        <a href="${runsUrl}" target="_blank" class="text-ball-300 underline">Voir l'exécution sur GitHub Actions →</a>`,
+                    log: '',
+                };
+            } else if (res.status === 401) {
+                this.result = { show: true, ok: false,
+                    title: 'Token invalide ou expiré',
+                    message: "Vérifie ton Personal Access Token dans les Paramètres (⚙️). Le token a peut-être expiré ou n'a pas les bonnes permissions.",
+                    log: '' };
+            } else if (res.status === 404) {
+                this.result = { show: true, ok: false,
+                    title: 'Workflow ou repo introuvable',
+                    message: `Vérifie que le repo <code>${this.ghOwner}/${this.ghRepo}</code> existe et que le workflow <code>${this.ghWorkflow}</code> y est bien présent. Erreur 404 de GitHub.`,
+                    log: '' };
+            } else {
+                const text = await res.text();
+                this.result = { show: true, ok: false,
+                    title: `Erreur GitHub (HTTP ${res.status})`,
+                    message: text,
+                    log: '' };
+            }
+        },
+    }
+}
+</script>
+
+</body>
+</html>
