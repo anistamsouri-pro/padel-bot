@@ -117,6 +117,48 @@ tailwind.config = {
 
 <body x-data="padelBot()" x-init="init()">
 
+<!-- ═════════════════════ CONFIRMATION MODAL (vraie reservation) ═════════════════════ -->
+<div x-show="showConfirm" x-cloak x-transition.opacity
+     class="fixed inset-0 z-[110] flex items-center justify-center p-4 bg-ink-300/90 backdrop-blur-sm"
+     @click.self="showConfirm = false"
+     @keydown.escape.window="showConfirm = false">
+    <div class="bg-court-950 border-2 border-amber-400 rounded-3xl p-8 max-w-lg w-full shadow-2xl shadow-amber-400/30"
+         @click.stop>
+        <div class="text-center">
+            <div class="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-amber-500/20 border border-amber-400/60 mb-4 animate-slow-pulse">
+                <svg class="w-9 h-9 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/>
+                </svg>
+            </div>
+            <h2 class="text-2xl font-extrabold mb-2">Confirmer la vraie réservation</h2>
+            <p class="text-court-100/80 text-sm leading-relaxed mb-1">Tu es sur le point de lancer le bot en <strong class="text-amber-300">mode RÉEL</strong>.</p>
+            <p class="text-court-100/80 text-sm leading-relaxed">La réservation sera effective et tes 3 partenaires seront engagés.</p>
+
+            <div class="bg-ink-300/60 border border-court-800 rounded-xl p-4 my-5 text-sm space-y-1.5 text-left">
+                <div class="text-xs text-amber-300 uppercase tracking-widest font-bold mb-2 flex items-center gap-2">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span> Récap
+                </div>
+                <div class="flex justify-between gap-3"><span class="text-court-200/60">Heure :</span> <span class="font-bold font-mono text-white" x-text="targetTime + '  ·  ' + courtsForTime[targetTime]"></span></div>
+                <div class="flex justify-between gap-3"><span class="text-court-200/60">Terrains :</span> <span class="font-bold font-mono text-white" x-text="courtPriority.join(' → ')"></span></div>
+                <div class="flex justify-between gap-3"><span class="text-court-200/60">Ouverture :</span> <span class="font-bold text-ball-300" x-text="openingLabel.replace('Ouverture : ','')"></span></div>
+            </div>
+
+            <p class="text-xs text-amber-200/80 mb-6 leading-relaxed">⚠️ <strong>Non annulable</strong> si tu as atteint ton quota d'annulations chez Les Pyramides (5 / 7 jours). Vérifie bien tous les paramètres avant de confirmer.</p>
+
+            <div class="flex flex-col-reverse sm:flex-row gap-3">
+                <button type="button" @click="showConfirm = false"
+                    class="flex-1 px-5 py-3.5 rounded-xl bg-court-800/60 border border-court-700 text-court-200 hover:text-white hover:border-court-500 transition-colors font-semibold">
+                    Annuler
+                </button>
+                <button type="button" @click="doSubmit()"
+                    class="flex-1 px-5 py-3.5 rounded-xl bg-gradient-to-br from-amber-300 via-amber-400 to-amber-500 text-court-950 font-extrabold uppercase tracking-wider hover:shadow-xl hover:shadow-amber-400/60 transition-all">
+                    Réserver pour de vrai
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
 <!-- ═════════════════════ SETTINGS MODAL (PAT GitHub) ═════════════════════ -->
 <div x-show="showSettings" x-cloak x-transition.opacity
      class="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-ink-300/80 backdrop-blur-sm"
@@ -469,6 +511,23 @@ tailwind.config = {
                 </div>
             </div>
 
+            <!-- ═════ Banniere d'alerte VRAIE RESA ═════ -->
+            <div x-show="!dryRun" x-transition.duration.300ms x-cloak
+                 class="relative overflow-hidden rounded-2xl border-2 border-amber-400/70 bg-gradient-to-r from-amber-500/15 via-amber-400/10 to-amber-500/15 p-5">
+                <!-- Animation diagonal stripes -->
+                <div class="absolute inset-0 opacity-20" style="background-image: repeating-linear-gradient(45deg, transparent, transparent 12px, rgba(250,204,21,0.3) 12px, rgba(250,204,21,0.3) 24px); pointer-events: none;"></div>
+                <div class="relative z-10 flex items-start gap-4">
+                    <div class="w-12 h-12 rounded-xl bg-amber-500/25 border border-amber-400/50 flex items-center justify-center flex-shrink-0 animate-slow-pulse">
+                        <svg class="w-7 h-7 text-amber-300" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z"/></svg>
+                    </div>
+                    <div>
+                        <div class="font-extrabold text-amber-200 text-base uppercase tracking-wide">Mode réservation réelle activé</div>
+                        <p class="text-sm text-amber-100/90 mt-1 leading-relaxed">Le bot va faire une <strong>vraie réservation</strong> à l'heure d'ouverture. Tes 3 partenaires seront engagés.</p>
+                        <p class="text-xs text-amber-200/80 mt-2"><strong>⚠️ Non annulable</strong> si tu as déjà atteint ton quota d'annulations chez Les Pyramides (5 / 7 jours).</p>
+                    </div>
+                </div>
+            </div>
+
             <!-- ═════ Submit button ═════ -->
             <button type="submit" :disabled="busy || courtPriority.length === 0"
                 class="btn-glow group relative w-full overflow-hidden rounded-2xl bg-gradient-to-br from-ball-200 via-ball-300 to-ball-400 text-court-950 font-extrabold text-xl uppercase tracking-widest py-6 shadow-2xl shadow-ball-300/50 hover:shadow-ball-300/70 hover:-translate-y-0.5 active:translate-y-0 disabled:opacity-40 disabled:cursor-not-allowed disabled:hover:transform-none transition-all">
@@ -618,8 +677,9 @@ function padelBot() {
             '19:30':'D3-D4-D5', '20:00':'D1-D2',
             '21:00':'D3-D4-D5', '21:30':'D1-D2',
         },
-        dryRun: false,
+        dryRun: false,       // DRY_RUN decoche par defaut (= mode reservation reelle)
         headless: false,
+        showConfirm: false,  // modale de confirmation quand on lance une vraie reservation
         minDate: '',
         maxDate: '',
         now: new Date(),
@@ -723,8 +783,21 @@ function padelBot() {
 
         async submitBooking() {
             if (this.courtPriority.length === 0) return;
+
+            // SECURITE : si on est en mode vraie reservation, on demande confirmation
+            if (!this.dryRun) {
+                this.showConfirm = true;
+                return;
+            }
+
+            // Sinon (DRY_RUN actif), on lance directement
+            await this.doSubmit();
+        },
+
+        async doSubmit() {
             this.busy = true;
             this.result.show = false;
+            this.showConfirm = false;
 
             try {
                 if (this.isGitHubMode) {
