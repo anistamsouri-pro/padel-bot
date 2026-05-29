@@ -63,10 +63,9 @@ jobs:
           h, m = map(int, os.environ["INPUT_TIME"].split(":"))
           courts = [c.strip() for c in os.environ["INPUT_COURTS"].split(",") if c.strip()]
           weekday = d.weekday()  # 0 = lundi, 6 = dimanche
-          if weekday < 5:
-              opening = datetime.datetime.combine(d - datetime.timedelta(days=2), datetime.time(17, 0))
-          else:
-              opening = datetime.datetime.combine(d - datetime.timedelta(days=1), datetime.time(19, 30))
+          # Toutes les ouvertures sont a 17h00. Semaine = J-2, week-end = J-1.
+          days_back = 2 if weekday < 5 else 1
+          opening = datetime.datetime.combine(d - datetime.timedelta(days=days_back), datetime.time(17, 0))
           cfg = {
               "target_date_offset": offset,
               "target_hour": h,

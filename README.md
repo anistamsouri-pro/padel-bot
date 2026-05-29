@@ -18,7 +18,7 @@ Agent automatique de réservation de créneaux padel sur ballejaune.com, déploy
 ## Règles ballejaune Les Pyramides
 
 - **Semaine** (Lun–Ven) : ouverture J-2 à 17h00
-- **Week-end** (Sam–Dim) : ouverture J-1 à 19h30
+- **Week-end** (Sam–Dim) : ouverture J-1 à 17h00
 
 ## Limite technique
 

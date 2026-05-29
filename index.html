@@ -664,20 +664,16 @@ function padelBot() {
         get openingDateTime() {
             if (!this.parsedDate) return null;
             const opening = new Date(this.parsedDate);
-            if (this.isWeekend) {
-                opening.setDate(opening.getDate() - 1);
-                opening.setHours(19, 30, 0, 0);
-            } else {
-                opening.setDate(opening.getDate() - 2);
-                opening.setHours(17, 0, 0, 0);
-            }
+            // Toutes les ouvertures sont à 17h00. Semaine = J-2, week-end = J-1.
+            opening.setDate(opening.getDate() - (this.isWeekend ? 1 : 2));
+            opening.setHours(17, 0, 0, 0);
             return opening;
         },
         get immediate() {
             return this.openingDateTime && this.openingDateTime <= this.now;
         },
         get ruleLabel() {
-            return this.isWeekend ? '· Week-end · ouverture J-1 19h30' : '· Semaine · ouverture J-2 17h00';
+            return this.isWeekend ? '· Week-end · ouverture J-1 17h00' : '· Semaine · ouverture J-2 17h00';
         },
         get targetLabel() {
             if (!this.parsedDate) return '';
