@@ -301,9 +301,12 @@ tailwind.config = {
                         <select x-model="targetTime"
                             class="w-full bg-ink-300/80 border border-court-800/60 rounded-xl px-4 py-3.5 text-white font-mono focus:outline-none focus:border-ball-400 focus:ring-2 focus:ring-ball-400/20 transition-all">
                             <template x-for="t in timeOptions" :key="t">
-                                <option :value="t" x-text="t"></option>
+                                <option :value="t" x-text="`${t}  ·  ${courtsForTime[t]}`"></option>
                             </template>
                         </select>
+                        <p class="text-xs text-court-200/60 mt-2">
+                            <span class="text-ball-300">D3-D4-D5</span> commencent à 07h30 · <span class="text-ball-300">D1-D2</span> décalés de 30 min (08h, 09h30, ...) · créneaux de 1h30
+                        </p>
                     </label>
                 </div>
             </div>
@@ -596,7 +599,25 @@ function padelBot() {
         courtPriority: ['D4','D5','D3','D1','D2'],
         targetDate: '',
         targetTime: '19:30',
-        timeOptions: ['07:30','09:00','10:30','12:00','13:30','15:00','16:30','18:00','19:30','21:00'],
+        timeOptions: [
+            '07:30','08:00','09:00','09:30','10:30','11:00',
+            '12:00','12:30','13:30','14:00','15:00','15:30',
+            '16:30','17:00','18:00','18:30','19:30','20:00',
+            '21:00','21:30'
+        ],
+        // Qui propose quoi (pour l'aide visuelle)
+        courtsForTime: {
+            '07:30':'D3-D4-D5', '08:00':'D1-D2',
+            '09:00':'D3-D4-D5', '09:30':'D1-D2',
+            '10:30':'D3-D4-D5', '11:00':'D1-D2',
+            '12:00':'D3-D4-D5', '12:30':'D1-D2',
+            '13:30':'D3-D4-D5', '14:00':'D1-D2',
+            '15:00':'D3-D4-D5', '15:30':'D1-D2',
+            '16:30':'D3-D4-D5', '17:00':'D1-D2',
+            '18:00':'D3-D4-D5', '18:30':'D1-D2',
+            '19:30':'D3-D4-D5', '20:00':'D1-D2',
+            '21:00':'D3-D4-D5', '21:30':'D1-D2',
+        },
         dryRun: false,
         headless: false,
         minDate: '',
